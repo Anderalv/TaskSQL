@@ -1,0 +1,64 @@
+/*ex1 site*/
+SELECT Fridges.Name, Models.Name FROM Fridges 
+JOIN Models ON Models.Name LIKE 'A%' AND Models.IdModel = Fridges.IdModel
+
+
+/*ex2 site*/
+SELECT Fridges.Name FROM Fridges
+JOIN FridgeProducts on FridgeProducts.IdFridge = Fridges.IdFridge
+JOIN Products on Products.IdProduct = FridgeProducts.IdProduct
+AND FridgeProducts.Quantity < Products.DefaultQuantity
+GROUP BY Fridges.Name
+
+
+/*ex3 site*/
+SELECT TOP(1) SUM(FridgeProducts.Quantity) as "max quantity", Models.[Year] as YEAR FROM FridgeProducts
+JOIN Fridges on Fridges.IdFridge = FridgeProducts.IdFridge
+JOIN Models on Models.IdModel = Fridges.IdModel
+GROUP BY Fridges.IdFridge, Models.[Year]
+ORDER BY "max quantity" DESC
+
+
+/*ex4 site*/
+SELECT  Products.Name as Products, Fridges.OwnerName AS 'Owner' FROM Fridges
+JOIN FridgeProducts on FridgeProducts.IdFridge = Fridges.IdFridge
+JOIN Products on Products.IdProduct = FridgeProducts.IdProduct AND FridgeProducts.IdFridge = (SELECT FridgeProducts.IdFridge FROM FridgeProducts GROUP BY FridgeProducts.IdFridge HAVING COUNT(FridgeProducts.IdFridge) = (SELECT TOP(1) COUNT(FridgeProducts.IdProduct) as "max count" FROM FridgeProducts GROUP BY FridgeProducts.IdFridge ORDER BY "max count" DESC))
+
+
+/*ex 2.1 site*/
+SELECT Products.Name, FridgeProducts.Quantity from Products 
+JOIN FridgeProducts on FridgeProducts.IdFridge = 2 AND Products.IdProduct = FridgeProducts.IdProduct
+
+
+/*ex 2.2 site*/
+SELECT Fridges.Name, Products.Name, FridgeProducts.Quantity FROM Fridges
+JOIN FridgeProducts on FridgeProducts.IdFridge = Fridges.IdFridge
+JOIN Products on Products.IdProduct = FridgeProducts.IdProduct
+GROUP BY Fridges.Name, Products.Name, FridgeProducts.Quantity
+
+
+/*ex 2.3 site*/
+SELECT Fridges.Name, SUM(FridgeProducts.Quantity) FROM Fridges
+JOIN FridgeProducts on FridgeProducts.IdFridge = Fridges.IdFridge
+GROUP BY FridgeProducts.IdFridge, Fridges.Name
+
+
+/*ex 2.4 site*/
+SELECT Fridges.Name, Models.Name, Models.[Year], SUM(FridgeProducts.Quantity) FROM Fridges
+JOIN Models on Fridges.IdModel = Models.IdModel
+JOIN FridgeProducts on FridgeProducts.IdFridge = Fridges.IdFridge
+GROUP BY FridgeProducts.IdFridge, Fridges.Name, Models.Name, Models.[Year]
+
+
+/*ex 2.5 site*/
+SELECT Fridges.Name FROM Fridges
+JOIN FridgeProducts ON FridgeProducts.IdFridge = Fridges.IdFridge
+JOIN Products on FridgeProducts.IdProduct = Products.IdProduct AND FridgeProducts.Quantity > Products.DefaultQuantity
+GROUP BY Fridges.Name
+
+
+/*ex 2.6 site*/
+SELECT Fridges.Name, COUNT(FridgeProducts.IdFridge) as "Count" FROM Fridges
+JOIN FridgeProducts ON FridgeProducts.IdFridge = Fridges.IdFridge
+JOIN Products on Products.IdProduct = FridgeProducts.IdProduct AND FridgeProducts.Quantity > Products.DefaultQuantity
+GROUP BY FridgeProducts.IdFridge, Fridges.Name
