@@ -17,6 +17,7 @@ create table Branch(
     ID_Bank INT,
     ID_City INT,
     FOREIGN KEY (ID_Bank)  REFERENCES Bank(ID_Bank) ON DELETE CASCADE
+    FOREIGN KEY (ID_City)  REFERENCES City(ID_City) ON DELETE CASCADE
 );
 create table Status(
 	ID_Status INT PRIMARY KEY IDENTITY,
@@ -212,7 +213,7 @@ BEGIN
 END
 
 
-/*Check result*/
+/*Check result when sum on cards account = Account.Balance*/
 SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
 JOIN Card ON Card.ID_Account = Account.ID_Account
 ORDER BY Account.ID_Account
@@ -222,6 +223,19 @@ EXEC AddMoneyOnCard 1, 400;
 SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
 JOIN Card ON Card.ID_Account = Account.ID_Account
 ORDER BY Account.ID_Account
+
+/*Check result when sum on cards account < Account.Balance*/
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+EXEC AddMoneyOnCard 2, 400;
+
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+
 
 /*ex8*/
 /*Card_Update*/
