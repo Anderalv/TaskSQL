@@ -1,0 +1,313 @@
+CREATE DATABASE TaskSQL;
+GO
+use TaskSQL;
+GO
+create table Bank
+(
+	ID_Bank INT PRIMARY KEY IDENTITY,
+    Name VARCHAR(100)
+);
+create table City(
+	ID_City INT PRIMARY KEY IDENTITY,
+    Name VARCHAR(20)
+);
+create table Branch(
+	ID_Branch INT PRIMARY KEY IDENTITY,
+    Name VARCHAR(20),
+    ID_Bank INT,
+    ID_City INT,
+    FOREIGN KEY (ID_Bank)  REFERENCES Bank(ID_Bank) ON DELETE CASCADE
+    FOREIGN KEY (ID_City)  REFERENCES City(ID_City) ON DELETE CASCADE
+);
+create table Status(
+	ID_Status INT PRIMARY KEY IDENTITY,
+    Name VARCHAR(20)
+);
+create table Client(
+	ID_Client INT PRIMARY KEY IDENTITY,
+    ID_Status INT,
+    Name VARCHAR(20),
+    FOREIGN KEY (ID_Status) REFERENCES Status(ID_Status) ON DELETE CASCADE
+);
+create table Account(
+	ID_Account INT PRIMARY KEY IDENTITY, 
+    Balance INT,
+	ID_Client INT,
+	ID_Bank INT,
+    UNIQUE (ID_Client, ID_Bank),
+	FOREIGN KEY (ID_Client) REFERENCES Client(ID_Client) ON DELETE CASCADE,
+	FOREIGN KEY (ID_Bank) REFERENCES Bank(ID_Bank) ON DELETE CASCADE
+);
+
+create table Card(
+	ID_Card INT PRIMARY KEY IDENTITY,
+    ID_Account INT NOT NULL,
+    Balance INT,
+    FOREIGN KEY (ID_Account) 
+		REFERENCES Account(ID_Account) ON DELETE CASCADE
+);
+
+
+INSERT Bank(Name)
+VALUES
+('Bank_1_Minsk_Brest'),
+('Bank_2_Minsk'),
+('Bank_3_Vitebsk_Grodno');
+
+INSERT City(Name)
+VALUES
+('Minsk'),
+('Brest'),
+('Vitebsk'),
+('Grodno');
+
+INSERT Branch(Name, ID_Bank, ID_City)
+VALUES
+('Branch1.1_Minsk', 1, 1),
+('Branch1.2_Brest', 1, 2),
+('Branch2.1_Minsk', 2, 1),
+('Branch3.1_Vitebsk', 3, 3),
+('Branch3.2_Grodno', 3, 4);
+
+
+INSERT Status(Name)
+VALUES
+('Standart'),
+('Vip');
+
+INSERT Client(Name, ID_Status)
+VALUES
+('Egor', 1),
+('Igor', 1),
+('Dima', 2),
+('Evgen', 2),
+('Vova', 1);
+
+INSERT Account(ID_Client, ID_Bank, Balance)
+VALUES
+(1, 1, 1000),
+(1, 2, 1000),
+(2, 3, 2000),
+(3, 1, 3000),
+(3, 2, 3000),
+(3, 3, 3000),
+(4, 2, 4000),
+(5, 1, 5000);
+
+INSERT Card(ID_Account, Balance)
+VALUES
+(1, 100),
+(2, 100),
+(3, 200),
+(4, 300),
+(5, 300),
+(6, 300),
+(7, 400),
+(8, 500),
+(1, 900);
+
+/*ex1*/
+SELECT Bank.Name, Branch.Name, City.Name
+FROM Bank
+Join Branch on Branch.ID_Bank = Bank.ID_Bank
+Join City on City.ID_City = Branch.ID_City AND Branch.ID_Branch = Branch.ID_Branch AND City.Name = 'Minsk';
+
+/*ex2*/
+SELECT Card.ID_Card,Client.Name, Card.Balance, Bank.Name
+FROM Card
+Left Join Account on Card.ID_Account = Account.ID_Account
+Join Client on Card.ID_Account = Account.ID_Account and Client.ID_Client = Account.ID_Client
+Join Bank on Bank.ID_Bank = Account.ID_Bank
+order by Card.ID_Card;
+
+/*ex3*/
+SELECT Account.ID_Account, Account.Balance, (SUM(Card.Balance)) as sumCards, (Account.Balance - SUM(Card.Balance)) AS rezult
+FROM Account
+JOIN Card 
+ON Card.ID_Account = Account.ID_Account
+GROUP BY Account.Balance, Account.ID_Account
+HAVING Account.Balance != SUM(card.balance)
+
+/*ex4 with Group by*/
+SELECT Status.ID_Status, STATUS.Name, count(Card.ID_Card) AS 'COUNT'
+FROM Card
+Left Join Account on Account.ID_Account = Card.ID_Account
+Join Client on Account.ID_Client = Client.ID_Client
+Join Status on Status.ID_Status = Client.ID_Status
+GROUP BY Status.ID_Status, Status.Name;
+
+/*ex4 подзапрос*/
+SELECT Status.ID_Status, Status.Name,
+(SELECT count(Card.ID_Card)
+    FROM Card, Account, Client 
+    Where Account.ID_Account = Card.ID_Account AND Account.ID_Client = Client.ID_Client AND Status.ID_Status = Client.ID_Status
+) AS 'COUNT'
+ From Status;
+
+/*ex5*/
+CREATE PROCEDURE AddMoney @id_status INT 
+AS
+BEGIN
+    IF NOT EXISTS(SELECT Status.ID_Status FROM status WHERE Status.ID_Status = @id_status)
+        PRINT 'invalid id_status';
+    ELSE IF NOT EXISTS(SELECT account.ID_Account
+        FROM Account
+        JOIN Client on Client.ID_Status = @id_status and Account.ID_Client = Client.ID_Client )
+        PRINT 'no accaunts with this status';
+    ELSE
+        UPDATE Account 
+        SET Account.Balance = Account.Balance+10  
+        FROM Client, Status
+        Where Client.ID_Status =  @id_status AND Account.ID_Client = Client.ID_Client;
+end;
+
+/*check result AddMoney*/
+SELECT Bank.Name, Account.Balance, Client.Name, [Status].[Name] From Client
+JOIN Account on Account.ID_Client = Client.ID_Client
+JOIN Bank on Bank.ID_Bank = Account.ID_Bank
+JOIN [Status] on [Status].[ID_Status] = Client.ID_Status;
+
+EXEC AddMoney 2;
+
+SELECT Bank.Name, Account.Balance, Client.Name, [Status].[Name] From Client
+JOIN Account on Account.ID_Client = Client.ID_Client
+JOIN Bank on Bank.ID_Bank = Account.ID_Bank
+JOIN [Status] on [Status].[ID_Status] = Client.ID_Status;
+
+ /*ex6*/
+SELECT Client.Name, SUM(Account.Balance) as 'Full Balance', (SUM(Account.Balance)-SUM(Card.Balance)) as rez
+FROM Client
+JOIN Account ON Client.ID_Client = Account.ID_Client
+JOIN Card ON Card.ID_Account = Account.ID_Account
+GROUP BY Account.Balance,  Client.Name;
+
+
+/*ex7*/
+CREATE PROCEDURE AddMoneyOnCard @Id_Card INT, @ValueTransfer INT
+AS
+BEGIN
+
+    DECLARE @Id_Account Int;
+    SET @Id_Account = (Select Account.ID_Account From Card Join Account on Card.ID_Card = @Id_Card and Account.ID_Account = Card.ID_Account);
+
+    SELECT @Id_Account
+
+    DECLARE @Sum_Cards Int;
+    SET @Sum_Cards = (select SUM(Card.Balance) from Card where Card.ID_Account = @Id_Account) 
+
+    DECLARE @Account_Balance Int;
+    SET @Account_Balance = (select Account.Balance from Account where Account.ID_Account = @Id_Account)
+
+    IF (@Account_Balance > @Sum_Cards AND @ValueTransfer <= (@Account_Balance - @Sum_Cards))  
+        BEGIN TRY
+            BEGIN TRAN
+                UPDATE Card 
+                set Balance = Balance + @ValueTransfer
+                WHERE Card.ID_Card = @Id_Card;
+            COMMIT TRAN 
+        END TRY
+    BEGIN CATCH
+        IF @@trancount > 0 ROLLBACK TRANSACTION
+        RETURN 
+    END CATCH
+END
+
+
+/*Check result when sum on cards account = Account.Balance*/
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+EXEC AddMoneyOnCard 1, 400;
+
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+/*Check result when sum on cards account < Account.Balance*/
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+EXEC AddMoneyOnCard 2, 400;
+
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+
+
+/*ex8*/
+/*Card_Update*/
+CREATE TRIGGER CardUpdate
+ON Card AFTER UPDATE
+AS IF UPDATE(balance)
+BEGIN
+    
+    DECLARE @Id_Account INT
+    DECLARE @SumNewCardBalande INT
+    DECLARE @AccountBalance INT
+
+    SELECT @Id_Account = (SELECT ID_Account from deleted);
+    SELECT @SumNewCardBalande = (SELECT SUM(Card.Balance) from Card WHERE ID_Account = @Id_Account)
+    SELECT @AccountBalance = (SELECT Account.Balance from Account where Account.ID_Account = @Id_Account)
+
+    IF (@AccountBalance < @SumNewCardBalande)
+    BEGIN
+        PRINT 'Error'
+        ROLLBACK TRANSACTION
+    END
+END
+
+
+/*Chek trigger CardUpdate*/
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+UPDATE Card
+set Balance = 5000 WHERE Card.ID_Card = 1
+
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+
+/*Chek trigger CardUpdate*/
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+UPDATE Account
+set Balance = 0 WHERE Account.ID_Account = 1
+
+SELECT Account.ID_Account, Account.Balance, Card.ID_Card, Card.Balance FROM Account
+JOIN Card ON Card.ID_Account = Account.ID_Account
+ORDER BY Account.ID_Account
+
+
+/*Account_Update*/
+CREATE TRIGGER AccountUpdate
+ON Account AFTER UPDATE
+AS IF UPDATE(Balance)
+BEGIN
+	
+    DECLARE @Id_Account INT
+    DECLARE @SumCardBalande INT
+    DECLARE @AccountBalance INT
+
+    SELECT @Id_Account = (SELECT ID_Account from deleted);
+    SELECT @SumCardBalande = (SELECT SUM(Card.Balance) from Card WHERE ID_Account = @Id_Account)
+    SELECT @AccountBalance =  Balance FROM inserted
+
+    IF (@AccountBalance < @SumCardBalande)
+    BEGIN		
+    	PRINT 'Error!'
+    	ROLLBACK TRANSACTION
+    END
+END
+
+
+
+
+
